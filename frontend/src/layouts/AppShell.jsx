@@ -39,7 +39,7 @@ export default function AppShell() {
             type="button"
             onClick={() => {
               localStorage.removeItem('token')
-              navigate('/login')
+              navigate('/')
             }}
             className="mt-6 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
           >

@@ -4,8 +4,9 @@ import { Link, useNavigate } from 'react-router-dom'
 export default function SignupPage() {
   const navigate = useNavigate()
   const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
     const fullName = String(formData.get('fullName') || '').trim()
@@ -28,8 +29,33 @@ export default function SignupPage() {
     }
 
     setError('')
-    localStorage.setItem('token', 'demo-token')
-    navigate('/dashboard')
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch('http://127.0.0.1:8000/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: fullName,
+          email,
+          password,
+        }),
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        setError(payload?.detail || 'Unable to create account right now. Please try again.')
+        return
+      }
+
+      navigate('/login')
+    } catch {
+      setError('Unable to create account right now. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -67,8 +93,12 @@ export default function SignupPage() {
             <p className="mt-1 text-xs text-slate-500">At least 8 characters.</p>
           </div>
 
-          <button className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700" type="submit">
-            Sign up
+          <button
+            className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            type="submit"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Creating account…' : 'Sign up'}
           </button>
         </form>
 
