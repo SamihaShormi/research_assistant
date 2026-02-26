@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+
 export default function SignupPage() {
   const navigate = useNavigate()
   const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
     const fullName = String(formData.get('fullName') || '').trim()
@@ -28,8 +31,33 @@ export default function SignupPage() {
     }
 
     setError('')
-    localStorage.setItem('token', 'demo-token')
-    navigate('/dashboard')
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: fullName,
+          email,
+          password,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null)
+        setError(errorBody?.detail || 'Unable to create account right now.')
+        return
+      }
+
+      navigate('/login')
+    } catch {
+      setError('Unable to create account right now.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -67,8 +95,12 @@ export default function SignupPage() {
             <p className="mt-1 text-xs text-slate-500">At least 8 characters.</p>
           </div>
 
-          <button className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700" type="submit">
-            Sign up
+          <button
+            className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+            type="submit"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Creating account…' : 'Sign up'}
           </button>
         </form>
 
