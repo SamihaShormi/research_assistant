@@ -9,3 +9,19 @@
 body {
   margin: 0;
 }
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+  }
+}
+
+@layer components {
+  .surface-card {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900;
+  }
+
+  .input-field {
+    @apply w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm transition placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-slate-700 dark:bg-slate-900 dark:placeholder:text-slate-500 dark:focus:ring-blue-900;
+  }
+}
