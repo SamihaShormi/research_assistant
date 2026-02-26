@@ -1,18 +1,20 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { apiRequest } from '../lib/api'
 
 export default function SignupPage() {
   const navigate = useNavigate()
   const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
-    const fullName = String(formData.get('fullName') || '').trim()
+    const name = String(formData.get('fullName') || '').trim()
     const email = String(formData.get('email') || '').trim()
     const password = String(formData.get('password') || '')
 
-    if (fullName.length < 2) {
+    if (name.length < 2) {
       setError('Please enter your full name.')
       return
     }
@@ -27,9 +29,20 @@ export default function SignupPage() {
       return
     }
 
-    setError('')
-    localStorage.setItem('token', 'demo-token')
-    navigate('/dashboard')
+    try {
+      setIsSubmitting(true)
+      setError('')
+      const payload = await apiRequest('/auth/signup', {
+        method: 'POST',
+        body: { name, email, password },
+      })
+      localStorage.setItem('token', payload.access_token)
+      navigate('/dashboard')
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -67,8 +80,8 @@ export default function SignupPage() {
             <p className="mt-1 text-xs text-slate-500">At least 8 characters.</p>
           </div>
 
-          <button className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700" type="submit">
-            Sign up
+          <button disabled={isSubmitting} className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-70" type="submit">
+            {isSubmitting ? 'Signing up...' : 'Sign up'}
           </button>
         </form>
 

@@ -1,0 +1,38 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.deps import get_current_user, get_db
+from app.models import Project, User
+from app.schemas import ProjectCreateRequest, ProjectResponse
+
+router = APIRouter(prefix="/projects", tags=["projects"])
+
+
+@router.post("", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
+def create_project(
+    payload: ProjectCreateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ProjectResponse:
+    project = Project(user_id=current_user.id, name=payload.name, description=payload.description)
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    return ProjectResponse.model_validate(project)
+
+
+@router.get("", response_model=list[ProjectResponse])
+def list_projects(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[ProjectResponse]:
+    projects = db.scalars(select(Project).where(Project.user_id == current_user.id).order_by(Project.created_at.desc())).all()
+    return [ProjectResponse.model_validate(project) for project in projects]
+
+
+@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> None:
+    project = db.scalar(select(Project).where(Project.id == project_id, Project.user_id == current_user.id))
+    if project is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    db.delete(project)
+    db.commit()

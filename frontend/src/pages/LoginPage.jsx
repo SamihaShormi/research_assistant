@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { apiRequest } from '../lib/api'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
     const email = String(formData.get('email') || '').trim()
@@ -21,9 +23,20 @@ export default function LoginPage() {
       return
     }
 
-    setError('')
-    localStorage.setItem('token', 'demo-token')
-    navigate('/dashboard')
+    try {
+      setIsSubmitting(true)
+      setError('')
+      const payload = await apiRequest('/auth/login', {
+        method: 'POST',
+        body: { email, password },
+      })
+      localStorage.setItem('token', payload.access_token)
+      navigate('/dashboard')
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -44,7 +57,6 @@ export default function LoginPage() {
               Email
             </label>
             <input id="email" name="email" className="input-field" placeholder="you@company.com" type="email" required />
-            <p className="mt-1 text-xs text-slate-500">Use the email associated with your workspace.</p>
           </div>
 
           <div>
@@ -52,11 +64,10 @@ export default function LoginPage() {
               Password
             </label>
             <input id="password" name="password" className="input-field" placeholder="••••••••" type="password" required />
-            <p className="mt-1 text-xs text-slate-500">Must be at least 6 characters.</p>
           </div>
 
-          <button className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700" type="submit">
-            Login
+          <button disabled={isSubmitting} className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-70" type="submit">
+            {isSubmitting ? 'Logging in...' : 'Login'}
           </button>
         </form>
 
