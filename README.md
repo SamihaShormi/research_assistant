@@ -32,6 +32,45 @@ Expected response:
 {"ok": true}
 ```
 
+### Document ingestion + semantic search (protected)
+
+Set Azure embedding env vars in `backend/.env`:
+
+```bash
+AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com
+AZURE_OPENAI_API_KEY=<key>
+AZURE_OPENAI_API_VERSION=2024-02-01
+AZURE_OPENAI_EMBEDDING_DEPLOYMENT=text-embedding-3-small
+```
+
+Example API usage:
+
+```bash
+# 1) Login and capture token
+TOKEN=$(curl -s -X POST http://127.0.0.1:8000/auth/login \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -d 'username=user@example.com&password=secret' | jq -r .access_token)
+
+# 2) Upload a TXT/PDF document
+curl -X POST "http://127.0.0.1:8000/projects/1/documents" \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@/path/to/file.pdf"
+
+# 3) List project documents
+curl -X GET "http://127.0.0.1:8000/projects/1/documents" \
+  -H "Authorization: Bearer $TOKEN"
+
+# 4) Semantic search
+curl -X POST "http://127.0.0.1:8000/projects/1/search" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"summarize related work", "top_k":5}'
+
+# 5) Delete a document
+curl -X DELETE "http://127.0.0.1:8000/projects/1/documents/10" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
 ## Frontend setup and run
 
 ```bash
