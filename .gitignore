@@ -11,3 +11,4 @@ frontend/dist/
 .env
 backend/.env
 frontend/.env
+backend/data/app.db
