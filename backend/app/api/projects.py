@@ -321,6 +321,13 @@ def ask_project(
         min_score=0.75,
     )
 
+    if not results:
+        return {
+            "query": q,
+            "answer": "I couldn't find anything relevant in your documents.",
+            "sources": [],
+        }
+
     context = [
         {
             "filename": item["filename"],
