@@ -66,11 +66,7 @@ export default function LoginPage() {
       <div className="surface-card w-full max-w-md p-8">
         <h1 className="text-3xl font-bold">Welcome back</h1>
 
-        {error && (
-          <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {error}
-          </div>
-        )}
+        {error && <div className="mt-5 rounded-xl border border-red-400/40 bg-accent/35 px-4 py-3 text-sm text-text">{error}</div>}
 
         <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
           <div>
@@ -87,18 +83,14 @@ export default function LoginPage() {
             <input id="password" name="password" type="password" required className="input-field" />
           </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-          >
+          <button type="submit" disabled={isLoading} className="btn-primary w-full disabled:opacity-60">
             {isLoading ? 'Logging in...' : 'Login'}
           </button>
         </form>
 
         <p className="mt-5 text-sm">
           Need an account?{' '}
-          <Link to="/signup" className="font-semibold text-blue-600">
+          <Link to="/signup" className="font-semibold text-primary underline-offset-2 hover:underline">
             Create one
           </Link>
         </p>

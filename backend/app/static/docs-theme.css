@@ -1,0 +1,66 @@
+:root {
+  --ra-bg: #ffffff;
+  --ra-surface: #fff1f6;
+  --ra-text: #2b1f26;
+  --ra-muted: #765968;
+  --ra-primary: #9e4d73;
+  --ra-accent: #f7bfd0;
+  --ra-border: #efcad7;
+}
+
+.swagger-ui .topbar,
+.swagger-ui .scheme-container {
+  background: var(--ra-surface);
+  border-bottom: 1px solid var(--ra-border);
+}
+
+.swagger-ui,
+.swagger-ui .wrapper,
+.swagger-ui .information-container,
+.swagger-ui .opblock,
+.swagger-ui .model-box,
+.swagger-ui .responses-inner {
+  color: var(--ra-text);
+}
+
+.swagger-ui .btn.authorize,
+.swagger-ui .opblock .opblock-summary-method,
+.swagger-ui .tab li.active button.tablinks {
+  background: var(--ra-primary);
+  border-color: var(--ra-primary);
+  color: #fff;
+}
+
+.swagger-ui .opblock {
+  border-color: var(--ra-border);
+  background: var(--ra-bg);
+}
+
+.swagger-ui .opblock-tag,
+.swagger-ui .parameter__name,
+.swagger-ui .opblock-summary-path,
+.swagger-ui .response-col_status,
+.swagger-ui .response-col_description {
+  color: var(--ra-text);
+}
+
+.swagger-ui input,
+.swagger-ui textarea,
+.swagger-ui select,
+.swagger-ui .servers > label select {
+  border-color: var(--ra-border);
+  color: var(--ra-text);
+}
+
+.swagger-ui .info a,
+.swagger-ui a.nostyle {
+  color: var(--ra-primary);
+}
+
+.swagger-ui .response-col_links,
+.swagger-ui .parameter__type,
+.swagger-ui .model-title__text,
+.swagger-ui .opblock-description-wrapper p,
+.swagger-ui .renderedMarkdown p {
+  color: var(--ra-muted);
+}

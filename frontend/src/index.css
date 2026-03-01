@@ -4,6 +4,27 @@
 
 :root {
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  --bg: #ffffff;
+  --surface: #fff1f6;
+  --text: #2b1f26;
+  --muted: #765968;
+  --primary: #9e4d73;
+  --primary-foreground: #ffffff;
+  --accent: #f7bfd0;
+  --border: #efcad7;
+  --ring: #9e4d73;
+}
+
+.dark {
+  --bg: #1f1b2e;
+  --surface: #2a2438;
+  --text: #ffefd2;
+  --muted: #e2cfd0;
+  --primary: #ffb1a8;
+  --primary-foreground: #2b1f26;
+  --accent: #ffd1b5;
+  --border: #4a3a57;
+  --ring: #ffb1a8;
 }
 
 body {
@@ -12,16 +33,24 @@ body {
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+    @apply bg-bg text-text antialiased;
   }
 }
 
 @layer components {
   .surface-card {
-    @apply rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900;
+    @apply rounded-2xl border border-border bg-surface shadow-sm;
   }
 
   .input-field {
-    @apply w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm transition placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-slate-700 dark:bg-slate-900 dark:placeholder:text-slate-500 dark:focus:ring-blue-900;
+    @apply w-full rounded-xl border border-border bg-bg px-4 py-2.5 text-sm text-text transition placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring;
+  }
+
+  .btn-primary {
+    @apply rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90;
+  }
+
+  .btn-secondary {
+    @apply rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-text transition hover:bg-accent/30;
   }
 }
