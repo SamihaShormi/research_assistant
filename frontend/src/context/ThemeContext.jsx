@@ -5,39 +5,50 @@ const ThemeContext = createContext(null)
 const getSystemTheme = () =>
   window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 
+const getInitialTheme = () => {
+  const storedTheme = localStorage.getItem('theme')
+  if (storedTheme === 'light' || storedTheme === 'dark') {
+    return { theme: storedTheme, source: 'stored' }
+  }
+
+  return { theme: getSystemTheme(), source: 'system' }
+}
+
 const applyThemeClass = (theme) => {
   document.documentElement.classList.toggle('dark', theme === 'dark')
 }
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => {
-    const storedTheme = localStorage.getItem('theme')
-    return storedTheme || getSystemTheme()
-  })
+  const [{ theme, source }, setThemeState] = useState(getInitialTheme)
 
   useEffect(() => {
     applyThemeClass(theme)
-    localStorage.setItem('theme', theme)
-  }, [theme])
+    if (source === 'stored') {
+      localStorage.setItem('theme', theme)
+    }
+  }, [source, theme])
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    if (source === 'stored') return undefined
 
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
     const handleChange = (event) => {
-      const storedTheme = localStorage.getItem('theme')
-      if (!storedTheme) {
-        setTheme(event.matches ? 'dark' : 'light')
-      }
+      setThemeState({ theme: event.matches ? 'dark' : 'light', source: 'system' })
     }
 
     mediaQuery.addEventListener('change', handleChange)
     return () => mediaQuery.removeEventListener('change', handleChange)
-  }, [])
+  }, [source])
 
   const value = useMemo(
     () => ({
       theme,
-      toggleTheme: () => setTheme((current) => (current === 'dark' ? 'light' : 'dark')),
+      toggleTheme: () => {
+        setThemeState((current) => {
+          const nextTheme = current.theme === 'dark' ? 'light' : 'dark'
+          return { theme: nextTheme, source: 'stored' }
+        })
+      },
     }),
     [theme],
   )
