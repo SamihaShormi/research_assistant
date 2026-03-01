@@ -116,7 +116,13 @@ def _get_project_or_404(project_id: int, user_id: int, db: Session) -> Project:
     return project
 
 
-def _search_project_chunk_results(project: Project, query: str, k: int, db: Session) -> list[dict]:
+def _search_project_chunk_results(
+    project: Project,
+    query: str,
+    k: int,
+    db: Session,
+    min_score: float = 0.75,
+) -> list[dict]:
     k = max(1, min(k, 20))
     query_embedding = embed_text(query)
 
@@ -143,7 +149,7 @@ def _search_project_chunk_results(project: Project, query: str, k: int, db: Sess
 
         similarity = _cosine_similarity(query_embedding, chunk_embedding)
 
-        if similarity is None:
+        if similarity is None or similarity < min_score:
             continue
 
         scored_results.append(
@@ -282,7 +288,13 @@ def search_project_chunks(
 ) -> dict:
     project = _get_project_or_404(project_id=project_id, user_id=current_user.id, db=db)
     bounded_k = max(1, min(k, 20))
-    results = _search_project_chunk_results(project=project, query=q, k=bounded_k, db=db)
+    results = _search_project_chunk_results(
+        project=project,
+        query=q,
+        k=bounded_k,
+        db=db,
+        min_score=0.75,
+    )
 
     return {
         "query": q,
@@ -301,7 +313,13 @@ def ask_project(
 ) -> dict:
     project = _get_project_or_404(project_id=project_id, user_id=current_user.id, db=db)
     bounded_k = max(1, min(k, 20))
-    results = _search_project_chunk_results(project=project, query=q, k=bounded_k, db=db)
+    results = _search_project_chunk_results(
+        project=project,
+        query=q,
+        k=bounded_k,
+        db=db,
+        min_score=0.75,
+    )
 
     context = [
         {
