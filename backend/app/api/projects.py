@@ -1,7 +1,9 @@
 import json
 import math
+from io import BytesIO
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import pdfplumber
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -37,6 +39,47 @@ class TextDocumentUpload(BaseModel):
 class TextDocumentUploadResponse(BaseModel):
     document_id: int
     chunks_created: int
+
+
+def _create_document_chunks(
+    project_id: int,
+    filename: str,
+    content: str,
+    db: Session,
+) -> TextDocumentUploadResponse:
+    document = Document(
+        project_id=project_id,
+        filename=filename,
+    )
+    db.add(document)
+    db.flush()  # get document.id without committing
+
+    chunks = chunk_text(content)
+
+    if len(chunks) > 1000:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Document too large. Please upload a smaller file.",
+        )
+
+    for index, chunk in enumerate(chunks):
+        embedding = embed_text(chunk)
+
+        db.add(
+            Chunk(
+                document_id=document.id,
+                chunk_index=index,
+                text=chunk,
+                embedding=json.dumps(embedding),
+            )
+        )
+
+    db.commit()
+
+    return TextDocumentUploadResponse(
+        document_id=document.id,
+        chunks_created=len(chunks),
+    )
 
 
 def _cosine_similarity(vector_a: list[float], vector_b: list[float]) -> float | None:
@@ -158,33 +201,62 @@ def upload_text_document(
 
     project = _get_project_or_404(project_id=project_id, user_id=current_user.id, db=db)
 
-    # Create document row
-    document = Document(
+    return _create_document_chunks(
         project_id=project.id,
         filename=payload.filename,
+        content=payload.content,
+        db=db,
     )
-    db.add(document)
-    db.flush()  # get document.id without committing
 
-    chunks = chunk_text(payload.content)
 
-    for index, chunk in enumerate(chunks):
-        embedding = embed_text(chunk)
+@router.post(
+    "/{project_id}/documents/pdf",
+    response_model=TextDocumentUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_pdf_document(
+    project_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TextDocumentUploadResponse:
+    project = _get_project_or_404(project_id=project_id, user_id=current_user.id, db=db)
 
-        db.add(
-            Chunk(
-                document_id=document.id,
-                chunk_index=index,
-                text=chunk,
-                embedding=json.dumps(embedding),
-            )
+    content_type = (file.content_type or "").lower()
+    filename = file.filename or "uploaded.pdf"
+    if content_type != "application/pdf" and not filename.lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file must be a PDF",
         )
 
-    db.commit()
+    pdf_bytes = await file.read()
+    if not pdf_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is empty",
+        )
 
-    return TextDocumentUploadResponse(
-        document_id=document.id,
-        chunks_created=len(chunks),
+    try:
+        with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
+            text_content = "\n".join((page.extract_text() or "") for page in pdf)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to extract text from PDF: {exc}",
+        ) from exc
+
+    if not text_content.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No extractable text found in PDF",
+        )
+
+    return _create_document_chunks(
+        project_id=project.id,
+        filename=filename,
+        content=text_content,
+        db=db,
     )
 
 
