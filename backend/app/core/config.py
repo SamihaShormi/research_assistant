@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     github_models_token: str = ""
     github_models_base_url: str = "https://models.github.ai"
     github_embed_model: str = "openai/text-embedding-3-small"
+    github_chat_model: str = ""
     github_api_version: str = "2022-11-28"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")

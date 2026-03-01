@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Chunk, Document, Project, User
 from app.security import get_current_user
+from app.services.chat import ChatGenerationError, generate_answer
 from app.services.chunking import chunk_text
 from app.services.embeddings import embed_text
 
@@ -57,6 +58,65 @@ def _cosine_similarity(vector_a: list[float], vector_b: list[float]) -> float | 
     return dot_product / (math.sqrt(norm_a) * math.sqrt(norm_b))
 
 
+def _get_project_or_404(project_id: int, user_id: int, db: Session) -> Project:
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.owner_id == user_id,
+    ).first()
+
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+
+    return project
+
+
+def _search_project_chunk_results(project: Project, query: str, k: int, db: Session) -> list[dict]:
+    k = max(1, min(k, 20))
+    query_embedding = embed_text(query)
+
+    chunk_rows = db.query(Chunk, Document).join(
+        Document,
+        Chunk.document_id == Document.id,
+    ).filter(
+        Document.project_id == project.id,
+    ).all()
+
+    if not chunk_rows:
+        return []
+
+    scored_results = []
+
+    for chunk, document in chunk_rows:
+        try:
+            chunk_embedding = json.loads(chunk.embedding)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            continue
+
+        if not isinstance(chunk_embedding, list):
+            continue
+
+        similarity = _cosine_similarity(query_embedding, chunk_embedding)
+
+        if similarity is None:
+            continue
+
+        scored_results.append(
+            {
+                "score": similarity,
+                "document_id": document.id,
+                "filename": document.filename,
+                "chunk_index": chunk.chunk_index,
+                "text": chunk.text,
+            }
+        )
+
+    scored_results.sort(key=lambda item: item["score"], reverse=True)
+    return scored_results[:k]
+
+
 @router.post("", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 def create_project(
     payload: ProjectCreate,
@@ -96,16 +156,7 @@ def upload_text_document(
     current_user: User = Depends(get_current_user),
 ) -> TextDocumentUploadResponse:
 
-    project = db.query(Project).filter(
-        Project.id == project_id,
-        Project.owner_id == current_user.id,
-    ).first()
-
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
+    project = _get_project_or_404(project_id=project_id, user_id=current_user.id, db=db)
 
     # Create document row
     document = Document(
@@ -143,16 +194,7 @@ def delete_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> None:
-    project = db.query(Project).filter(
-        Project.id == project_id,
-        Project.owner_id == current_user.id,
-    ).first()
-
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
+    project = _get_project_or_404(project_id=project_id, user_id=current_user.id, db=db)
 
     db.delete(project)
     db.commit()
@@ -166,64 +208,56 @@ def search_project_chunks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
-    project = db.query(Project).filter(
-        Project.id == project_id,
-        Project.owner_id == current_user.id,
-    ).first()
-
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
-    k = max(1, min(k, 20))
-    query_embedding = embed_text(q)
-
-    chunk_rows = db.query(Chunk, Document).join(
-        Document,
-        Chunk.document_id == Document.id,
-    ).filter(
-        Document.project_id == project.id,
-    ).all()
-
-    if not chunk_rows:
-        return {
-            "query": q,
-            "k": k,
-            "results": [],
-        }
-
-    scored_results = []
-
-    for chunk, document in chunk_rows:
-        try:
-            chunk_embedding = json.loads(chunk.embedding)
-        except (TypeError, ValueError, json.JSONDecodeError):
-            continue
-
-        if not isinstance(chunk_embedding, list):
-            continue
-
-        similarity = _cosine_similarity(query_embedding, chunk_embedding)
-
-        if similarity is None:
-            continue
-
-        scored_results.append(
-            {
-                "score": similarity,
-                "document_id": document.id,
-                "filename": document.filename,
-                "chunk_index": chunk.chunk_index,
-                "text": chunk.text,
-            }
-        )
-
-    scored_results.sort(key=lambda item: item["score"], reverse=True)
+    project = _get_project_or_404(project_id=project_id, user_id=current_user.id, db=db)
+    bounded_k = max(1, min(k, 20))
+    results = _search_project_chunk_results(project=project, query=q, k=bounded_k, db=db)
 
     return {
         "query": q,
-        "k": k,
-        "results": scored_results[:k],
+        "k": bounded_k,
+        "results": results,
+    }
+
+
+@router.get("/{project_id}/ask")
+def ask_project(
+    project_id: int,
+    q: str,
+    k: int = 5,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    project = _get_project_or_404(project_id=project_id, user_id=current_user.id, db=db)
+    bounded_k = max(1, min(k, 20))
+    results = _search_project_chunk_results(project=project, query=q, k=bounded_k, db=db)
+
+    context = [
+        {
+            "filename": item["filename"],
+            "chunk_index": item["chunk_index"],
+            "score": item["score"],
+            "text": item["text"],
+        }
+        for item in results
+    ]
+
+    try:
+        answer = generate_answer(question=q, context=context)
+    except ChatGenerationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to generate answer: {exc}",
+        ) from exc
+
+    return {
+        "query": q,
+        "answer": answer,
+        "sources": [
+            {
+                "filename": item["filename"],
+                "chunk_index": item["chunk_index"],
+                "score": item["score"],
+            }
+            for item in results
+        ],
     }
