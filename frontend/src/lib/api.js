@@ -52,6 +52,14 @@ export const api = {
     return request('/projects')
   },
 
+  getProject(projectId) {
+    return request(`/projects/${projectId}`)
+  },
+
+  getProjectActivity(projectId) {
+    return request(`/projects/${projectId}/activity`)
+  },
+
   createProject(payload) {
     return request('/projects', {
       method: 'POST',
@@ -90,6 +98,12 @@ export const api = {
 
   getProjectDocuments(projectId) {
     return request(`/projects/${projectId}/documents`)
+  },
+
+  deleteProjectDocument(projectId, documentId) {
+    return request(`/projects/${projectId}/documents/${documentId}`, {
+      method: 'DELETE',
+    })
   },
 
   searchProject(projectId, q, k = 5) {

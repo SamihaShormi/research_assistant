@@ -6,9 +6,16 @@ import AppShell from './layouts/AppShell'
 import DashboardPage from './pages/DashboardPage'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
-import ProjectPage from './pages/ProjectPage'
 import ProjectsPage from './pages/ProjectsPage'
+import RecentActivityPage from './pages/RecentActivityPage'
+import SettingsPage from './pages/SettingsPage'
 import SignupPage from './pages/SignupPage'
+import ProjectActivityTab from './pages/project/ProjectActivityTab'
+import ProjectAskTab from './pages/project/ProjectAskTab'
+import ProjectNotesTab from './pages/project/ProjectNotesTab'
+import ProjectSearchTab from './pages/project/ProjectSearchTab'
+import ProjectSourcesTab from './pages/project/ProjectSourcesTab'
+import ProjectWorkspacePage from './pages/project/ProjectWorkspacePage'
 
 function PublicLayout({ children }) {
   return (
@@ -53,7 +60,16 @@ export default function App() {
             <Route element={<AppShell />}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
-              <Route path="/projects/:projectId" element={<ProjectPage />} />
+              <Route path="/activity" element={<RecentActivityPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/projects/:projectId" element={<ProjectWorkspacePage />}>
+                <Route path="sources" element={<ProjectSourcesTab />} />
+                <Route path="search" element={<ProjectSearchTab />} />
+                <Route path="ask" element={<ProjectAskTab />} />
+                <Route path="notes" element={<ProjectNotesTab />} />
+                <Route path="activity" element={<ProjectActivityTab />} />
+                <Route index element={<Navigate to="sources" replace />} />
+              </Route>
             </Route>
           </Route>
 

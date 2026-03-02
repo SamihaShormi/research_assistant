@@ -40,6 +40,12 @@ class TextDocumentUploadResponse(BaseModel):
     document_id: int
     chunks_created: int
 
+class ProjectActivityItem(BaseModel):
+    type: str
+    filename: str
+    created_at: str | None
+
+
 
 def _create_document_chunks(
     project_id: int,
@@ -193,6 +199,41 @@ def list_projects(
     ).all()
 
 
+@router.get("/{project_id}", response_model=ProjectResponse)
+def get_project(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Project:
+    return _get_project_or_404(project_id=project_id, user_id=current_user.id, db=db)
+
+
+@router.get("/{project_id}/activity", response_model=list[ProjectActivityItem])
+def get_project_activity(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[ProjectActivityItem]:
+    project = _get_project_or_404(project_id=project_id, user_id=current_user.id, db=db)
+
+    documents = (
+        db.query(Document)
+        .filter(Document.project_id == project.id)
+        .order_by(Document.created_at.desc())
+        .limit(50)
+        .all()
+    )
+
+    return [
+        ProjectActivityItem(
+            type="source_uploaded",
+            filename=document.filename,
+            created_at=document.created_at.isoformat() if document.created_at else None,
+        )
+        for document in documents
+    ]
+
+
 @router.post(
     "/{project_id}/documents/text",
     response_model=TextDocumentUploadResponse,
@@ -264,6 +305,35 @@ async def upload_pdf_document(
         content=text_content,
         db=db,
     )
+
+
+@router.delete("/{project_id}/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project_document(
+    project_id: int,
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    project = _get_project_or_404(project_id=project_id, user_id=current_user.id, db=db)
+
+    document = (
+        db.query(Document)
+        .filter(
+            Document.id == document_id,
+            Document.project_id == project.id,
+        )
+        .first()
+    )
+
+    if not document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    db.query(Chunk).filter(Chunk.document_id == document.id).delete()
+    db.delete(document)
+    db.commit()
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)

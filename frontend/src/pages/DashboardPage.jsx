@@ -70,7 +70,7 @@ export default function DashboardPage() {
               <div key={project.id} className="grid grid-cols-[2fr,3fr,auto] items-center gap-3 border-t border-border px-4 py-3 text-sm">
                 <span className="font-medium">{project.name}</span>
                 <span className="text-muted">{project.description || '—'}</span>
-                <Link to={`/projects/${project.id}`} className="rounded-lg bg-accent/30 px-3 py-1.5 text-xs font-medium hover:bg-accent/50">
+                <Link to={`/projects/${project.id}/sources`} className="rounded-lg bg-accent/30 px-3 py-1.5 text-xs font-medium hover:bg-accent/50">
                   Open
                 </Link>
               </div>
