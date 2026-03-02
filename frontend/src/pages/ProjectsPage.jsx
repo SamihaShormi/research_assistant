@@ -9,6 +9,8 @@ export default function ProjectsPage() {
   const [query, setQuery] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [createError, setCreateError] = useState('')
+  const [deleteError, setDeleteError] = useState('')
+  const [deletingProjectId, setDeletingProjectId] = useState(null)
 
   const filteredProjects = useMemo(() => {
     const normalized = query.trim().toLowerCase()
@@ -32,6 +34,7 @@ export default function ProjectsPage() {
     }
 
     setCreateError('')
+    setDeleteError('')
     setIsCreating(true)
 
     try {
@@ -54,11 +57,32 @@ export default function ProjectsPage() {
     }
   }
 
+  const handleDeleteProject = async (project) => {
+    if (deletingProjectId) return
+
+    const shouldDelete = window.confirm(`Delete project "${project.name}"? This cannot be undone.`)
+    if (!shouldDelete) return
+
+    setDeleteError('')
+    setDeletingProjectId(project.id)
+
+    try {
+      await api.deleteProject(project.id)
+      await refreshProjects?.()
+    } catch (error) {
+      if (error.message !== 'Unauthorized') {
+        setDeleteError(error.message || 'Failed to delete project.')
+      }
+    } finally {
+      setDeletingProjectId(null)
+    }
+  }
+
   return (
     <section className="space-y-6">
       <header className="surface-card p-6">
         <h1 className="text-3xl font-bold">Projects</h1>
-        <p className="mt-2 text-sm text-muted">Browse all projects and search by project name.</p>
+        <p className="mt-2 text-sm text-muted">Browse all projects, search by name, create new projects, or delete existing ones.</p>
 
         <div className="mt-4 grid gap-3 md:grid-cols-[1fr,auto]">
           <input
@@ -82,6 +106,8 @@ export default function ProjectsPage() {
         </button>
       </form>
 
+      {deleteError && <p className="text-sm text-primary">{deleteError}</p>}
+
       {!filteredProjects.length ? (
         <div className="rounded-xl border border-dashed border-border p-8 text-center">
           <p className="font-medium">No matching projects</p>
@@ -92,16 +118,26 @@ export default function ProjectsPage() {
           <div className="grid grid-cols-[2fr,3fr,auto] gap-3 bg-accent/25 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted">
             <span>Name</span>
             <span>Description</span>
-            <span></span>
+            <span>Actions</span>
           </div>
 
           {filteredProjects.map((project) => (
             <div key={project.id} className="grid grid-cols-[2fr,3fr,auto] items-center gap-3 border-t border-border px-4 py-3 text-sm">
               <span className="font-medium">{project.name}</span>
               <span className="text-muted">{project.description || '—'}</span>
-              <Link to={`/projects/${project.id}`} className="rounded-lg bg-accent/30 px-3 py-1.5 text-xs font-medium hover:bg-accent/50">
-                Open
-              </Link>
+              <div className="flex items-center gap-2 justify-self-end">
+                <Link to={`/projects/${project.id}`} className="rounded-lg bg-accent/30 px-3 py-1.5 text-xs font-medium hover:bg-accent/50">
+                  Open
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteProject(project)}
+                  disabled={deletingProjectId === project.id}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-primary hover:bg-accent/30 disabled:opacity-60"
+                >
+                  {deletingProjectId === project.id ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
             </div>
           ))}
         </div>

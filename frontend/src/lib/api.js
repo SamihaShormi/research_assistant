@@ -62,6 +62,12 @@ export const api = {
     })
   },
 
+
+  deleteProject(projectId) {
+    return request(`/projects/${projectId}`, {
+      method: 'DELETE',
+    })
+  },
   uploadTextDocument(projectId, payload) {
     return request(`/projects/${projectId}/documents/text`, {
       method: 'POST',
