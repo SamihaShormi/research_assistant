@@ -57,7 +57,7 @@ export default function DashboardPage() {
         ) : loadError ? (
           <div className="text-primary">{loadError}</div>
         ) : projects.length === 0 ? (
-          <div className="text-sm text-muted">No projects yet. Create one from the sidebar.</div>
+          <div className="text-sm text-muted">No projects yet. Create one from the Projects page.</div>
         ) : (
           <div className="overflow-hidden rounded-xl border border-border">
             <div className="grid grid-cols-[2fr,3fr,auto] gap-3 bg-accent/25 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted">
