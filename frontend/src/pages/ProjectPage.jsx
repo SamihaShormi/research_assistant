@@ -89,11 +89,11 @@ function DocumentsTab({ projectId }) {
     setIsUploadingText(true)
 
     try {
-      await api.uploadTextDocument(projectId, { filename, content })
+      const uploadResult = await api.uploadTextDocument(projectId, { filename, content })
       const localDoc = {
         id: `${Date.now()}-${filename}`,
         filename,
-        chunks_created: 0,
+        chunks_created: uploadResult?.chunks_created ?? 0,
         status: 'Indexed',
       }
       setLocalUploadedDocuments((prev) => {
@@ -134,11 +134,11 @@ function DocumentsTab({ projectId }) {
     setIsUploadingPdf(true)
 
     try {
-      await api.uploadPdfDocument(projectId, file)
+      const uploadResult = await api.uploadPdfDocument(projectId, file)
       const localDoc = {
         id: `${Date.now()}-${file.name}`,
         filename: file.name,
-        chunks_created: 0,
+        chunks_created: uploadResult?.chunks_created ?? 0,
         status: 'Indexed',
       }
       setLocalUploadedDocuments((prev) => {
