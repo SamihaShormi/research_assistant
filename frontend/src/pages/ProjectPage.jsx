@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useOutletContext, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import '../lib/types'
@@ -6,7 +6,10 @@ import '../lib/types'
 const tabs = ['Documents', 'Search', 'Chat', 'Notes']
 
 function DocumentsTab({ projectId }) {
+  const textFormRef = useRef(null)
+  const pdfFormRef = useRef(null)
   const [documents, setDocuments] = useState([])
+  const [localUploadedDocuments, setLocalUploadedDocuments] = useState([])
   const [isLoadingDocs, setIsLoadingDocs] = useState(true)
   const [docsError, setDocsError] = useState('')
   const [textError, setTextError] = useState('')
@@ -14,6 +17,10 @@ function DocumentsTab({ projectId }) {
   const [successMessage, setSuccessMessage] = useState('')
   const [isUploadingText, setIsUploadingText] = useState(false)
   const [isUploadingPdf, setIsUploadingPdf] = useState(false)
+  const [textFilename, setTextFilename] = useState('')
+  const [textContent, setTextContent] = useState('')
+
+  const documentsStorageKey = `documents:${projectId}`
 
   const fetchDocuments = async () => {
     setIsLoadingDocs(true)
@@ -22,10 +29,25 @@ function DocumentsTab({ projectId }) {
     try {
       const data = await api.getProjectDocuments(projectId)
       setDocuments(Array.isArray(data) ? data : [])
+      setLocalUploadedDocuments([])
+      localStorage.removeItem(documentsStorageKey)
     } catch (error) {
       if (error.message !== 'Unauthorized') {
-        setDocsError(error.message || 'Failed to load documents for this project.')
+        setDocsError(error.message || 'Failed to load documents for this project. Showing locally uploaded items if available.')
       }
+
+      const cached = localStorage.getItem(documentsStorageKey)
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached)
+          setLocalUploadedDocuments(Array.isArray(parsed) ? parsed : [])
+        } catch {
+          setLocalUploadedDocuments([])
+        }
+      } else {
+        setLocalUploadedDocuments([])
+      }
+
       setDocuments([])
     } finally {
       setIsLoadingDocs(false)
@@ -36,20 +58,26 @@ function DocumentsTab({ projectId }) {
     setDocuments([])
     setIsLoadingDocs(true)
     setDocsError('')
+    setLocalUploadedDocuments([])
     setTextError('')
     setPdfError('')
     setSuccessMessage('')
+    setTextFilename('')
+    setTextContent('')
+    if (textFormRef.current) textFormRef.current.reset()
+    if (pdfFormRef.current) pdfFormRef.current.reset()
 
     fetchDocuments()
   }, [projectId])
+
+  const allDocuments = documents.length ? documents : localUploadedDocuments
 
   const handleTextUpload = async (event) => {
     event.preventDefault()
     if (isUploadingText) return
 
-    const form = new FormData(event.currentTarget)
-    const filename = String(form.get('filename') || '').trim()
-    const content = String(form.get('content') || '').trim()
+    const filename = textFilename.trim()
+    const content = textContent.trim()
 
     if (!filename || !content) {
       setTextError('Filename and content are required.')
@@ -62,9 +90,24 @@ function DocumentsTab({ projectId }) {
 
     try {
       await api.uploadTextDocument(projectId, { filename, content })
+      const localDoc = {
+        id: `${Date.now()}-${filename}`,
+        filename,
+        chunks_created: 0,
+        status: 'Indexed',
+      }
+      setLocalUploadedDocuments((prev) => {
+        const next = [...prev, localDoc]
+        localStorage.setItem(documentsStorageKey, JSON.stringify(next))
+        return next
+      })
       await fetchDocuments()
       setSuccessMessage(`Uploaded ${filename} successfully.`)
-      event.currentTarget.reset()
+      setTextFilename('')
+      setTextContent('')
+      if (textFormRef.current) {
+        textFormRef.current.reset()
+      }
     } catch (error) {
       if (error.message !== 'Unauthorized') {
         setTextError(error.message || 'Failed to upload text document.')
@@ -92,9 +135,22 @@ function DocumentsTab({ projectId }) {
 
     try {
       await api.uploadPdfDocument(projectId, file)
+      const localDoc = {
+        id: `${Date.now()}-${file.name}`,
+        filename: file.name,
+        chunks_created: 0,
+        status: 'Indexed',
+      }
+      setLocalUploadedDocuments((prev) => {
+        const next = [...prev, localDoc]
+        localStorage.setItem(documentsStorageKey, JSON.stringify(next))
+        return next
+      })
       await fetchDocuments()
       setSuccessMessage(`Uploaded ${file.name} successfully.`)
-      event.currentTarget.reset()
+      if (pdfFormRef.current) {
+        pdfFormRef.current.reset()
+      }
     } catch (error) {
       if (error.message !== 'Unauthorized') {
         setPdfError(error.message || 'Failed to upload PDF document.')
@@ -107,17 +163,31 @@ function DocumentsTab({ projectId }) {
   return (
     <div className="space-y-4">
       <div className="grid gap-4 lg:grid-cols-2">
-        <form className="surface-card space-y-3 p-4" onSubmit={handleTextUpload}>
+        <form ref={textFormRef} className="surface-card space-y-3 p-4" onSubmit={handleTextUpload}>
           <h3 className="font-semibold">Upload Text</h3>
-          <input name="filename" className="input-field" placeholder="notes.txt" required />
-          <textarea name="content" className="input-field min-h-28" placeholder="Paste document content..." required />
+          <input
+            name="filename"
+            className="input-field"
+            placeholder="notes.txt"
+            value={textFilename}
+            onChange={(event) => setTextFilename(event.target.value)}
+            required
+          />
+          <textarea
+            name="content"
+            className="input-field min-h-28"
+            placeholder="Paste document content..."
+            value={textContent}
+            onChange={(event) => setTextContent(event.target.value)}
+            required
+          />
           {textError && <p className="text-xs text-primary">{textError}</p>}
           <button type="submit" className="btn-primary" disabled={isUploadingText}>
             {isUploadingText ? 'Uploading...' : 'Upload Text'}
           </button>
         </form>
 
-        <form className="surface-card space-y-3 p-4" onSubmit={handlePdfUpload}>
+        <form ref={pdfFormRef} className="surface-card space-y-3 p-4" onSubmit={handlePdfUpload}>
           <h3 className="font-semibold">Upload PDF</h3>
           <input name="file" type="file" accept="application/pdf,.pdf" className="input-field" required />
           {pdfError && <p className="text-xs text-primary">{pdfError}</p>}
@@ -133,19 +203,20 @@ function DocumentsTab({ projectId }) {
         <div className="rounded-xl border border-dashed border-border p-8 text-center">
           <p className="font-medium">Loading documents...</p>
         </div>
-      ) : docsError ? (
+      ) : docsError && !allDocuments.length ? (
         <div className="rounded-xl border border-dashed border-border p-8 text-center">
           <p className="font-medium">Unable to load documents.</p>
           <p className="mt-1 text-sm text-muted">{docsError}</p>
         </div>
-      ) : !documents.length ? (
+      ) : !allDocuments.length ? (
         <div className="rounded-xl border border-dashed border-border p-8 text-center">
           <p className="font-medium">No documents uploaded yet</p>
           <p className="mt-1 text-sm text-muted">Upload text or PDF files to create indexed chunks.</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {documents.map((doc, index) => (
+          {docsError && <p className="text-sm text-muted">{docsError}</p>}
+          {allDocuments.map((doc, index) => (
             <article key={`${doc.id ?? doc.name}-${index}`} className="surface-card p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
