@@ -3,6 +3,13 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import { api } from '../lib/api'
 
+const links = [
+  { to: '/dashboard', label: 'Dashboard', icon: '▦' },
+  { to: '/projects', label: 'Projects', icon: '◉' },
+  { to: '/activity', label: 'Recent Activity', icon: '◷' },
+  { to: '/settings', label: 'Settings', icon: '⚙' },
+]
+
 export default function AppShell() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -30,25 +37,21 @@ export default function AppShell() {
         <aside className="hidden h-fit w-72 shrink-0 surface-card p-4 md:block">
           <p className="px-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted">Workspace</p>
           <nav className="mt-3 space-y-1.5">
-            <Link
-              to="/dashboard"
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                location.pathname.startsWith('/dashboard') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted hover:bg-accent/30 hover:text-text'
-              }`}
-            >
-              <span>▦</span>
-              <span>Dashboard</span>
-            </Link>
-
-            <Link
-              to="/projects"
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                location.pathname === '/projects' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted hover:bg-accent/30 hover:text-text'
-              }`}
-            >
-              <span>◉</span>
-              <span>Projects</span>
-            </Link>
+            {links.map((link) => {
+              const isActive = location.pathname === link.to || location.pathname.startsWith(`${link.to}/`)
+              return (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                    isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted hover:bg-accent/30 hover:text-text'
+                  }`}
+                >
+                  <span>{link.icon}</span>
+                  <span>{link.label}</span>
+                </Link>
+              )
+            })}
           </nav>
           <button
             type="button"
