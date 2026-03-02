@@ -1,14 +1,27 @@
+import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
-
-const navItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: '▦' },
-  { to: '/projects/demo', label: 'Sample Project', icon: '◉' },
-]
+import { api } from '../lib/api'
 
 export default function AppShell() {
   const location = useLocation()
   const navigate = useNavigate()
+  const [projects, setProjects] = useState([])
+
+  const fetchProjects = async () => {
+    try {
+      const data = await api.getProjects()
+      setProjects(Array.isArray(data) ? data : [])
+    } catch (error) {
+      if (error.message !== 'Unauthorized') {
+        setProjects([])
+      }
+    }
+  }
+
+  useEffect(() => {
+    fetchProjects()
+  }, [])
 
   return (
     <div className="min-h-screen bg-bg text-text">
@@ -17,21 +30,25 @@ export default function AppShell() {
         <aside className="hidden h-fit w-72 shrink-0 surface-card p-4 md:block">
           <p className="px-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted">Workspace</p>
           <nav className="mt-3 space-y-1.5">
-            {navItems.map((item) => {
-              const active = location.pathname.startsWith(item.to)
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                    active ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted hover:bg-accent/30 hover:text-text'
-                  }`}
-                >
-                  <span>{item.icon}</span>
-                  <span>{item.label}</span>
-                </Link>
-              )
-            })}
+            <Link
+              to="/dashboard"
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                location.pathname.startsWith('/dashboard') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted hover:bg-accent/30 hover:text-text'
+              }`}
+            >
+              <span>▦</span>
+              <span>Dashboard</span>
+            </Link>
+
+            <Link
+              to="/projects"
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                location.pathname === '/projects' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted hover:bg-accent/30 hover:text-text'
+              }`}
+            >
+              <span>◉</span>
+              <span>Projects</span>
+            </Link>
           </nav>
           <button
             type="button"
@@ -45,7 +62,7 @@ export default function AppShell() {
           </button>
         </aside>
         <main className="w-full">
-          <Outlet />
+          <Outlet context={{ projects, refreshProjects: fetchProjects }} />
         </main>
       </div>
     </div>

@@ -7,6 +7,7 @@ import DashboardPage from './pages/DashboardPage'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import ProjectPage from './pages/ProjectPage'
+import ProjectsPage from './pages/ProjectsPage'
 import SignupPage from './pages/SignupPage'
 
 function PublicLayout({ children }) {
@@ -51,6 +52,7 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/projects/:projectId" element={<ProjectPage />} />
             </Route>
           </Route>
